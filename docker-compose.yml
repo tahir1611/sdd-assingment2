@@ -1,0 +1,16 @@
+services:
+  mysql:
+    image: mysql:8.0.39
+    container_name: sdd-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: sdd
+      MYSQL_USER: sdd
+      MYSQL_PASSWORD: sdd
+    ports:
+      - "3306:3306"
+    volumes:
+      - sdd_mysql_data:/var/lib/mysql
+
+volumes:
+  sdd_mysql_data:
