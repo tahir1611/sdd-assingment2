@@ -1,0 +1,17 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environment
+.venv/
+
+# Dataset
+data/
+porto.zip
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
