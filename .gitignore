@@ -15,3 +15,5 @@ Thumbs.db
 
 # Secrets
 .env
+# Filer generert av Claude (ikke push)
+claude_output/
