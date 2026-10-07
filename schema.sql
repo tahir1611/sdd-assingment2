@@ -15,7 +15,7 @@ CREATE TABLE Trip (
 );
 
 CREATE TABLE GPSPoint (
-    trip_fk BIGINT NOT NULL,
+    trip_fk INT NOT NULL,
     point_no INT NOT NULL,
     longitude DOUBLE NOT NULL,
     latitude DOUBLE NOT NULL,

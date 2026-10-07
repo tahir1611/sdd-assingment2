@@ -26,7 +26,7 @@ class InsertData:
 
         df["n_points"] = df["POLYLINE"].apply(lambda x: len(json.loads(x)))
 
-        query: str = """
+        trip_query = """
         INSERT INTO Trip (
             trip_id,
             call_type,
@@ -34,11 +34,23 @@ class InsertData:
             origin_stand,
             taxi_id,
             start_time,
-            day_type,
             n_points
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
+
+        gps_query = """
+        INSERT INTO GPSPoint (
+            trip_fk,
+            point_no,
+            longitude,
+            latitude
+        )
+        VALUES (%s, %s, %s, %s)
+        """
+
+        gps_batch = []
+        batch_size = 10000
 
         for _, row in df.iterrows():
 
@@ -49,14 +61,32 @@ class InsertData:
                 None if pd.isna(row["ORIGIN_STAND"]) else int(row["ORIGIN_STAND"]),
                 int(row["TAXI_ID"]),
                 row["start_time"].to_pydatetime(),
-                row["DAY_TYPE"],
                 int(row["n_points"])
             )
 
-            self.cursor.execute(query, values)
+            self.cursor.execute(trip_query, values)
+
+            trip_fk = self.cursor.lastrowid
+
+            polyline = json.loads(row["POLYLINE"])
+
+            for point_no, point in enumerate(polyline):
+
+                gps_batch.append((
+                    trip_fk,
+                    point_no,
+                    point[0],
+                    point[1]
+                ))
+
+                if len(gps_batch) >= batch_size:
+                    self.cursor.executemany(gps_query, gps_batch)
+                    gps_batch.clear()
+
+        if gps_batch:
+            self.cursor.executemany(gps_query, gps_batch)
 
         self.db_connection.commit()
-
 
 def main():
     program = None
