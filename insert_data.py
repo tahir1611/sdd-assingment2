@@ -2,6 +2,7 @@ import pandas as pd
 import json
 from DbConnector import DbConnector
 
+NROWS: int = 100_000
 
 class InsertData:
 
@@ -10,10 +11,10 @@ class InsertData:
         self.db_connection = self.connection.db_connection
         self.cursor = self.connection.cursor
 
-    def insert_trips(self):
-
+    def insert_trips(self) -> None:
+        
         # Les data
-        df = pd.read_csv("data/porto.csv", nrows=1000)
+        df = pd.read_csv("data/porto.csv", nrows=NROWS)
 
         # Cleaning fra EDA
         df = df[df["MISSING_DATA"] == False].copy()
@@ -25,7 +26,7 @@ class InsertData:
 
         df["n_points"] = df["POLYLINE"].apply(lambda x: len(json.loads(x)))
 
-        query = """
+        query: str = """
         INSERT INTO Trip (
             trip_id,
             call_type,
