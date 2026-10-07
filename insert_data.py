@@ -1,53 +1,76 @@
 import pandas as pd
-import mysql.connector
+import json
+from DbConnector import DbConnector
 
-# Les data
-df = pd.read_csv("data/porto.csv", nrows=1000)
 
-# Cleaning fra EDA
-df = df[df["MISSING_DATA"] == False].copy()
-df = df.drop(columns=["MISSING_DATA"])
-df = df.drop_duplicates().copy()
+class InsertData:
 
-# Koble til MySQL som kjører i Docker
-connection = mysql.connector.connect(
-    host="localhost",
-    user="sdd",
-    password="sdd",
-    database="sdd"
-)
+    def __init__(self):
+        self.connection = DbConnector()
+        self.db_connection = self.connection.db_connection
+        self.cursor = self.connection.cursor
 
-cursor = connection.cursor()
+    def insert_trips(self):
 
-# Sett inn én rad om gangen
-for _, row in df.iterrows():
-    cursor.execute(
-        """
+        # Les data
+        df = pd.read_csv("data/porto.csv", nrows=1000)
+
+        # Cleaning fra EDA
+        df = df[df["MISSING_DATA"] == False].copy()
+        df = df.drop(columns=["MISSING_DATA"])
+        df = df.drop_duplicates().copy()
+
+        # Konverter til datetime
+        df["start_time"] = pd.to_datetime(df["TIMESTAMP"], unit="s")
+
+        df["n_points"] = df["POLYLINE"].apply(lambda x: len(json.loads(x)))
+
+        query = """
         INSERT INTO Trip (
             trip_id,
             call_type,
             origin_call,
             origin_stand,
             taxi_id,
-            timestamp,
+            start_time,
             day_type,
-            polyline
+            n_points
         )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """,
-        (
-            int(row["TRIP_ID"]),
-            row["CALL_TYPE"],
-            None if pd.isna(row["ORIGIN_CALL"]) else int(row["ORIGIN_CALL"]),
-            None if pd.isna(row["ORIGIN_STAND"]) else int(row["ORIGIN_STAND"]),
-            int(row["TAXI_ID"]),
-            int(row["TIMESTAMP"]),
-            row["DAY_TYPE"],
-            row["POLYLINE"]
-        )
-    )
+        """
 
-connection.commit()
+        for _, row in df.iterrows():
 
-cursor.close()
-connection.close()
+            values = (
+                int(row["TRIP_ID"]),
+                row["CALL_TYPE"],
+                None if pd.isna(row["ORIGIN_CALL"]) else int(row["ORIGIN_CALL"]),
+                None if pd.isna(row["ORIGIN_STAND"]) else int(row["ORIGIN_STAND"]),
+                int(row["TAXI_ID"]),
+                row["start_time"].to_pydatetime(),
+                row["DAY_TYPE"],
+                int(row["n_points"])
+            )
+
+            self.cursor.execute(query, values)
+
+        self.db_connection.commit()
+
+
+def main():
+    program = None
+
+    try:
+        program = InsertData()
+        program.insert_trips()
+
+    except Exception as e:
+        print("ERROR:", e)
+
+    finally:
+        if program:
+            program.connection.close_connection()
+
+
+if __name__ == "__main__":
+    main()
