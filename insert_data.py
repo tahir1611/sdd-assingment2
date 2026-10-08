@@ -40,16 +40,9 @@ class InsertData:
         df = df[df["MISSING_DATA"] == False].copy()
         df = df.drop(columns=["MISSING_DATA"])
 
-        # Duplikater i TRIP_ID: behold kopien med flest GPS-punkter, siden EDA
-        # viste at første kopi ofte er avkortet. Ved likt antall beholdes første
-        # kopi. Dette fjerner også de 3 radene som er helt identiske.
-        df["antall_punkter"] = df["POLYLINE"].str.count(r"\[") - 1
-        df = (
-            df.sort_values(["TRIP_ID", "antall_punkter"], ascending=[True, False], kind="stable")
-            .drop_duplicates(subset="TRIP_ID", keep="first")
-            .sort_index()
-            .drop(columns=["antall_punkter"])
-        )
+        # Fjern bare helt identiske rader. Ulike rader med samme TRIP_ID
+        # beholdes og får hver sin unike id fra databasen.
+        df = df.drop_duplicates().copy()
 
         # Konverter til datetime
         df["start_time"] = pd.to_datetime(df["TIMESTAMP"], unit="s")
