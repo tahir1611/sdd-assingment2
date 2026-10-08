@@ -116,8 +116,7 @@ class Queries:
             FROM Trip
             WHERE n_points >= 3
             GROUP BY Taxi_id
-            ORDER BY total_hours DESC
-            LIMIT 20;
+            ORDER BY total_hours DESC;
         """
         self.cursor.execute(query)
         rows = self.cursor.fetchall()
