@@ -5,6 +5,10 @@ from math import radians, sin, cos, sqrt, atan2
 
 NROWS: int = None
 
+# Et steg på mer enn 1 km mellom to punkter (15 s) tilsvarer over 240 km/t,
+# og regnes som et GPS-hopp. Slike steg tas ikke med i distance_km.
+MAX_STEP_KM = 1.0
+
 class InsertData:
 
     def __init__(self):
@@ -35,7 +39,17 @@ class InsertData:
         # Cleaning fra EDA
         df = df[df["MISSING_DATA"] == False].copy()
         df = df.drop(columns=["MISSING_DATA"])
-        df = df.drop_duplicates().copy()
+
+        # Duplikater i TRIP_ID: behold kopien med flest GPS-punkter, siden EDA
+        # viste at første kopi ofte er avkortet. Ved likt antall beholdes første
+        # kopi. Dette fjerner også de 3 radene som er helt identiske.
+        df["antall_punkter"] = df["POLYLINE"].str.count(r"\[") - 1
+        df = (
+            df.sort_values(["TRIP_ID", "antall_punkter"], ascending=[True, False], kind="stable")
+            .drop_duplicates(subset="TRIP_ID", keep="first")
+            .sort_index()
+            .drop(columns=["antall_punkter"])
+        )
 
         # Konverter til datetime
         df["start_time"] = pd.to_datetime(df["TIMESTAMP"], unit="s")
@@ -67,6 +81,7 @@ class InsertData:
 
         gps_batch = []
         batch_size = 10000
+        trips_inserted = 0
 
         for _, row in df.iterrows():
 
@@ -81,7 +96,9 @@ class InsertData:
                 lon1, lat1 = polyline[i - 1]
                 lon2, lat2 = polyline[i]
     
-                distance_km += self.haversine(lon1, lat1, lon2, lat2)
+                step_km = self.haversine(lon1, lat1, lon2, lat2)
+                if step_km <= MAX_STEP_KM:
+                    distance_km += step_km
 
             values = (
                 int(row["TRIP_ID"]),
@@ -112,10 +129,20 @@ class InsertData:
                     self.cursor.executemany(gps_query, gps_batch)
                     gps_batch.clear()
 
+            # Commit underveis, så ikke alt går tapt hvis noe stopper
+            trips_inserted += 1
+            if trips_inserted % 50_000 == 0:
+                if gps_batch:
+                    self.cursor.executemany(gps_query, gps_batch)
+                    gps_batch.clear()
+                self.db_connection.commit()
+                print(f"{trips_inserted} av {len(df)} turer satt inn")
+
         if gps_batch:
             self.cursor.executemany(gps_query, gps_batch)
 
         self.db_connection.commit()
+        print(f"Ferdig: {trips_inserted} turer satt inn")
 
 def main():
     program = None

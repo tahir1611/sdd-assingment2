@@ -1,0 +1,54 @@
+OVERSIKT
+  Rader: 1,710,670   Kolonner: 9
+  Unike TRIP_ID: 1,710,589   Unike taxier: 448
+  GPS-punkter totalt: 83,409,386
+  Første start (lokal): 2013-07-01 01:00:53   Siste start: 2014-07-01 00:59:56
+
+NaN PER KOLONNE
+  TRIP_ID: 0
+  CALL_TYPE: 0
+  ORIGIN_CALL: 1,345,900
+  ORIGIN_STAND: 904,091
+  TAXI_ID: 0
+  TIMESTAMP: 0
+  DAY_TYPE: 0
+  MISSING_DATA: 0
+  POLYLINE: 0
+
+CALL_TYPE
+  A: 364,770 (21.3 %)
+  B: 817,881 (47.8 %)
+  C: 528,019 (30.9 %)
+  ORIGIN_CALL satt for A: 100.0 %, satt utenfor A: 0 turer
+  ORIGIN_STAND satt for B: 98.6 %, satt utenfor B: 0 turer, B-turer uten stand: 11,302
+
+DAY_TYPE
+  A: 1,710,670
+
+MISSING_DATA = True: 10 turer (på 9 taxier), av dem med under 3 punkter: 2
+
+DUPLIKATER I TRIP_ID
+  TRIP_ID som forekommer mer enn én gang: 80
+  Rader involvert: 161   Overskytende rader: 81
+  Helt identiske rader (overskytende): 3
+  Duplikat-ID-er med samme taxi og tidsstempel: 80 av 80
+  Duplikat-ID-er der første kopi har færre punkter enn den lengste: 51
+
+GPS-PUNKTER PER TUR
+  0 punkter: 5,901
+  1 punkter: 30,609
+  2 punkter: 7,394
+  Under 3 punkter (ugyldige): 43,904 (2.57 %)
+  Gyldige turer, n_points: median 42.0, 95 % 104.0, 99 % 191.0, maks 3881.0 punkter
+  Gyldige turer, duration_min: median 10.2, 95 % 25.8, 99 % 47.5, maks 970.0 min
+  Gyldige turer, distance_km: median 4.0, 95 % 14.9, 99 % 23.9, maks 751.6 km
+
+DATAKVALITET I POLYLINJENE
+  Turer med minst ett GPS-hopp (> 1.0 km på 15 s): 21,231
+  Turer med punkter utenfor Portugal-boksen: 32
+  Gyldige turer med snittfart > 120 km/t (etter at hopp er fjernet): 201
+  Gyldige turer lenger enn 3 timer: 847
+
+TURER PER TAXI
+  snitt 3818.5, median 3732, min 1, maks 10746
+  Taxier med under 100 turer: 10
