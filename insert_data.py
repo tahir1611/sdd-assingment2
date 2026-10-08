@@ -1,8 +1,9 @@
 import pandas as pd
 import json
 from DbConnector import DbConnector
+from math import radians, sin, cos, sqrt, atan2
 
-NROWS: int = 100_000
+NROWS: int = None
 
 class InsertData:
 
@@ -10,6 +11,21 @@ class InsertData:
         self.connection = DbConnector()
         self.db_connection = self.connection.db_connection
         self.cursor = self.connection.cursor
+
+    def haversine(self, lon1, lat1, lon2, lat2):
+        R = 6371.0
+
+        dlon = radians(lon2 - lon1)
+        dlat = radians(lat2 - lat1)
+
+        a = (
+            sin(dlat / 2) ** 2
+            + cos(radians(lat1))
+            * cos(radians(lat2))
+            * sin(dlon / 2) ** 2
+        )
+
+        return 2 * R * atan2(sqrt(a), sqrt(1 - a))
 
     def insert_trips(self) -> None:
         
@@ -24,8 +40,6 @@ class InsertData:
         # Konverter til datetime
         df["start_time"] = pd.to_datetime(df["TIMESTAMP"], unit="s")
 
-        df["n_points"] = df["POLYLINE"].apply(lambda x: len(json.loads(x)))
-
         trip_query = """
         INSERT INTO Trip (
             trip_id,
@@ -34,9 +48,11 @@ class InsertData:
             origin_stand,
             taxi_id,
             start_time,
-            n_points
+            n_points,
+            duration_s,
+            distance_km
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
         gps_query = """
@@ -54,6 +70,19 @@ class InsertData:
 
         for _, row in df.iterrows():
 
+            polyline = json.loads(row["POLYLINE"])
+            
+            n_points = len(polyline)
+            duration_s = max(0, (n_points - 1) * 15)
+    
+            distance_km = 0.0
+    
+            for i in range(1, n_points):
+                lon1, lat1 = polyline[i - 1]
+                lon2, lat2 = polyline[i]
+    
+                distance_km += self.haversine(lon1, lat1, lon2, lat2)
+
             values = (
                 int(row["TRIP_ID"]),
                 row["CALL_TYPE"],
@@ -61,14 +90,14 @@ class InsertData:
                 None if pd.isna(row["ORIGIN_STAND"]) else int(row["ORIGIN_STAND"]),
                 int(row["TAXI_ID"]),
                 row["start_time"].to_pydatetime(),
-                int(row["n_points"])
+                n_points,
+                duration_s,
+                distance_km
             )
 
             self.cursor.execute(trip_query, values)
 
             trip_fk = self.cursor.lastrowid
-
-            polyline = json.loads(row["POLYLINE"])
 
             for point_no, point in enumerate(polyline):
 

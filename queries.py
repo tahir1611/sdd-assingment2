@@ -196,7 +196,7 @@ def main():
 
     try:
         program = Queries()
-        for i in range(1, 12):
+        for i in range(1, 4):
             query = getattr(program, f"query_{i}")
             query()
     except Exception as e:
