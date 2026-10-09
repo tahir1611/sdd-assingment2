@@ -1,13 +1,40 @@
 import pandas as pd
 import json
 from DbConnector import DbConnector
-from math import radians, sin, cos, sqrt, atan2
+from math import radians, sin, cos, sqrt, atan2, isfinite
 
 NROWS = None
 
 # Et steg på mer enn 1 km mellom to punkter (15 s) tilsvarer over 240 km/t,
 # og regnes som et GPS-hopp. Slike steg tas ikke med i distance_km.
 MAX_STEP_KM = 1.0
+
+
+def parse_polyline(value):
+    """Valider hele GPS-listen uten å fjerne punkter eller endre rekkefølgen."""
+    if not isinstance(value, str):
+        raise ValueError("POLYLINE mangler eller er ikke tekst")
+    points = json.loads(value)
+    if not isinstance(points, list):
+        raise ValueError("POLYLINE må være en liste")
+
+    for index, point in enumerate(points):
+        if not isinstance(point, list) or len(point) != 2:
+            raise ValueError(f"Punkt {index} må inneholde [lon, lat]")
+        lon, lat = point
+        if any(
+            isinstance(x, bool)
+            or not isinstance(x, (int, float))
+            or not isfinite(x)
+            for x in (lon, lat)
+        ):
+            raise ValueError(f"Punkt {index} har ugyldige koordinattall")
+        if not (-180 <= lon <= 180 and -90 <= lat <= 90):
+            raise ValueError(f"Punkt {index} er utenfor koordinatgrensene")
+
+    # Tomme lister og 1–2 punkter beholdes for oppgave 7.
+    return points
+
 
 class InsertData:
 
@@ -32,7 +59,16 @@ class InsertData:
         return 2 * R * atan2(sqrt(a), sqrt(1 - a))
 
     def insert_trips(self) -> None:
-        
+        # Ikke importer på nytt over en fullført eller delvis import.
+        for table in ("Trip", "GPSPoint"):
+            self.cursor.execute(f"SELECT EXISTS(SELECT 1 FROM {table})")
+            if self.cursor.fetchone()[0]:
+                raise RuntimeError(
+                    "Databasen inneholder allerede data. "
+                    "Import krever tomme tabeller. Kjør schema.sql bare hvis "
+                    "du ønsker å slette eksisterende data og importere på nytt."
+                )
+
         # Les data
         df = pd.read_csv("data/porto.csv", nrows=NROWS)
 
@@ -75,10 +111,16 @@ class InsertData:
         gps_batch = []
         batch_size = 10000
         trips_inserted = 0
+        rejected_rows = []
 
-        for _, row in df.iterrows():
+        for source_index, row in df.iterrows():
 
-            polyline = json.loads(row["POLYLINE"])
+            try:
+                polyline = parse_polyline(row["POLYLINE"])
+            except ValueError as error:
+                # Original radposisjon beholdes gjennom filtrering/duplikatfjerning.
+                rejected_rows.append((source_index + 2, row["TRIP_ID"], str(error)))
+                continue
             
             n_points = len(polyline)
             duration_s = max(0, (n_points - 1) * 15)
@@ -135,7 +177,13 @@ class InsertData:
             self.cursor.executemany(gps_query, gps_batch)
 
         self.db_connection.commit()
-        print(f"Ferdig: {trips_inserted} turer satt inn")
+        pd.DataFrame(
+            rejected_rows, columns=["csv_row", "trip_id", "reason"]
+        ).to_csv("rejected_rows.csv", index=False)
+        print(
+            f"Ferdig: {trips_inserted} turer satt inn, "
+            f"{len(rejected_rows)} rader avvist. Se rejected_rows.csv."
+        )
 
 def main():
     program = None
