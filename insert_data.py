@@ -3,7 +3,7 @@ import json
 from DbConnector import DbConnector
 from math import radians, sin, cos, sqrt, atan2
 
-NROWS: int = None
+NROWS = None
 
 # Et steg på mer enn 1 km mellom to punkter (15 s) tilsvarer over 240 km/t,
 # og regnes som et GPS-hopp. Slike steg tas ikke med i distance_km.
